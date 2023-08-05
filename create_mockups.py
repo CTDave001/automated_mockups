@@ -46,7 +46,7 @@ def create_mockups(design_dir, mockup_dir, parameters, output_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create mockup designs based on given parameters.")
-    parser.add_argument('--param_file', type=str, default='images/parameters.json', help="File path for parameters.")
+    parser.add_argument('--param_file', type=str, default='parameters.json', help="File path for parameters.")
     parser.add_argument('--design_dir', type=str, default='images/designs', help="Directory of design images.")
     parser.add_argument('--mockup_dir', type=str, default='images/mockups', help="Directory of mockup images.")
     parser.add_argument('--output_dir', type=str, default='images/output', help="Directory to save the output images.")
