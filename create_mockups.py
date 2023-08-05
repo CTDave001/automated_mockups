@@ -53,4 +53,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     parameters = load_parameters(args.param_file)
-    create_mockups(args.design_dir, args.mockup_dir, parameters, args.output
+    create_mockups(args.design_dir, args.mockup_dir, parameters, args.output_dir)
