@@ -1,5 +1,3 @@
-# README.md:
-
 # T-Shirt Mockup Generator
 
 The T-Shirt Mockup Generator is a Python-based tool for generating realistic shirt mockups given a specified design and a set of base mockup images.
