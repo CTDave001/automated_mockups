@@ -1,4 +1,5 @@
 import os
+import argparse
 import cv2
 import json
 from PIL import Image
@@ -38,7 +39,11 @@ def save_parameters(directory, target_color):
     with open("parameters.json", "w") as file:
         json.dump(parameters, file)
 
-# Usage
-mockups_with_boxes_dir = 'BoxMocks'
-target_color = (0, 0, 0)  # The color to find in the images (in this case, black)
-save_parameters(mockups_with_boxes_dir, target_color)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Calculate parameters for positioning designs on product mockups.")
+    parser.add_argument('--color', type=int, nargs=3, metavar=('R', 'G', 'B'), help="The RGB values of the color to find in the images.")
+    parser.add_argument('--dir', type=str, default='BoxMocks', help="Directory of images.")
+    args = parser.parse_args()
+
+    target_color = tuple(args.color)
+    save_parameters(args.dir, target_color)
