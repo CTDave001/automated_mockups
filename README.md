@@ -1,11 +1,17 @@
-# Shirt Mockup Generator
+# README.md:
 
-Shirt Mockup Generator is a Python tool for generating shirt mockups. It uses image processing techniques to identify a designated 'target area' on a base mockup image where a user's design image will be placed.
+# T-Shirt Mockup Generator
+
+The T-Shirt Mockup Generator is a Python-based tool for generating realistic shirt mockups given a specified design and a set of base mockup images.
+
+This program works by calculating several parameters (e.g., bounding box, width, height, rotation angle) of a designated 'target area' in the base mockup images, where the user-specified shirt design will be placed. 
 
 ## Repository Structure
+
 ```
 /ShirtMockupGenerator
-│   run.py
+│   calculate_parameters.py
+│   create_mockup.py
 │   README.md
 │   requirements.txt
 |   LICENSE
@@ -17,58 +23,58 @@ Shirt Mockup Generator is a Python tool for generating shirt mockups. It uses im
 |   |   parameters.json
 ```
 
----
+## Getting Started
 
-## Getting Started:
+Follow these instructions to get the Shirt Mockup Generator running on your local machine.
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
+### Prerequisites
 
-### Prerequisites:
-
-To run this code, you need the following installed:
+Ensure you have the following installed:
 
 - Python 3.8
-- PIL
-- cv2
-- OpenCV
+- Pillow
+- cv2 (OpenCV)
 - numpy
-- skimage
+- scikit-image
 
+### Installing
 
-### Installing:
-
-To install the required dependencies run:
+Install the required Python dependencies using pip:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Usage:
+## Usage
 
-You can start the program by running `run.py` script:
+1. Use the `calculate_parameters.py` script to compute the parameters for each base mockup image and save it to a .json file:
 
-```python
-python run.py
-```
+   ```python
+   python calculate_parameters.py
+   ```
 
-This will start the process of generating shirt mockups.
+2. Apply your designs to the mockups using the `create_mockup.py` script:
 
----
+   ```python
+   python create_mockup.py
+   ```
 
-## File Overview:
+The resulting mockups can be found in the 'images/output' directory. 
 
-- `run.py`: This is the main entry script to run the Shirt Mockup Generator.
+## File Descriptions
 
-- `images/mockups`: This directory contains the base mockup images that will be used for generating the shirt mockups.
+- `calculate_parameters.py`: This script analyzes the base mockup images and calculates the parameters necessary for placing the user's shirt design properly on each mockup.
 
-- `images/designs`: This directory contains the user's design images that will be placed onto the base mockup images.
+- `create_mockup.py`: This script takes user design images and places them onto the base mockups using the parameters computed with calculate_parameters.py.
 
-- `images/output`: This directory is where the generated shirt mockups will be saved.
+- `images/mockups`: Contains the base mockup images.
 
-- `images/parameters.json`: This file stores the parameters computed for each mockup (bounding box, width, height, rotation angle), used for placing the design images onto the mockups.
+- `images/designs`: Contains the user's shirt design images.
 
----
+- `images/output`: Stores the generated mockups.
 
-## License:
+- `images/parameters.json`: Holds the computed parameters for each mockup.
+
+## License
 
 This project is licensed under the MIT License.
