@@ -42,7 +42,7 @@ def save_parameters(directory, target_color):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Calculate parameters for positioning designs on product mockups.")
     parser.add_argument('--color', type=int, nargs=3, metavar=('R', 'G', 'B'), help="The RGB values of the color to find in the images.")
-    parser.add_argument('--dir', type=str, default='BoxMocks', help="Directory of images.")
+    parser.add_argument('--dir', type=str, default='images/box_mockups', help="Directory of images with the box.")
     args = parser.parse_args()
 
     target_color = tuple(args.color)
