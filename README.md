@@ -14,7 +14,7 @@ This tool is extremely helpful for designers, marketers, or anyone who needs to 
 
 ```
 /ShirtMockupGenerator
-│   calculate_parameters.py
+│   calculate_box_pos.py
 │   create_mockup.py
 │   README.md
 │   requirements.txt
