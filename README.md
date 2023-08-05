@@ -1,8 +1,14 @@
 # T-Shirt Mockup Generator
 
-The T-Shirt Mockup Generator is a Python-based tool for generating realistic shirt mockups given a specified design and a set of base mockup images.
+This project is a collection of Python scripts that automate the process of generating mockups by overlaying design images on predefined areas in mockup templates. It works with simple or complex mockup images including those where the placeholder box is rotated.
 
-This program works by calculating several parameters (e.g., bounding box, width, height, rotation angle) of a designated 'target area' in the base mockup images, where the user-specified shirt design will be placed. 
+The script first identifies a target box within reference mockup images by looking for a specific color (e.g., black). It calculates the position, size, and rotation of this box relative to the overall image, and saves these details for multiple mockups in a JSON file.
+
+Then, using these parameters, the script places design images onto real mockups (i.e., without target boxes). It scales and rotates the design according to each mockup's specific parameters, ensuring a real-life appearance. The top of the design aligns with the top of the box, and it is horizontally centered for a seamlessly fitting design in the mockup.
+
+The tool takes two directories as input: one with the design images and the other with the mockup templates. It generates a new image for every combination of design and mockup, storing mockups in an output directory.
+
+This tool is extremely helpful for designers, marketers, or anyone who needs to quickly generate a large number of mockups for design presentations, marketing collateral or e-commerce listings.
 
 ## Repository Structure
 
