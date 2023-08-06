@@ -10,21 +10,23 @@ The tool takes two directories as input: one with the design images and the othe
 
 This tool is extremely helpful for designers, marketers, or anyone who needs to quickly generate a large number of mockups for design presentations, marketing collateral or e-commerce listings.
 
-## Repository Structure
+## Directories Tree
+This is how your structure should look like:
 
 ```
 /ShirtMockupGenerator
 │   calculate_box_pos.py
-│   create_mockup.py
+│   create_mockups.py
 │   README.md
 │   requirements.txt
 |   LICENSE
+|   parameters.json
 │
 └───images
 │   │   mockups
 │   │   designs
 │   │   output
-|   |   parameters.json
+|   |   box_mockups
 ```
 
 ## Getting Started
@@ -51,19 +53,38 @@ pip install -r requirements.txt
 
 ## Usage
 
-1. Use the `calculate_parameters.py` script to compute the parameters for each base mockup image and save it to a .json file:
+**Step 1: Calculate Parameters**
 
-   ```python
-   python calculate_parameters.py
-   ```
+The first step is to calculate the bounding box parameters for your mockup images. It identifies a specific color in your image (for example, a black box), and calculates the position, size, and rotation of this box.
 
-2. Apply your designs to the mockups using the `create_mockup.py` script:
+Run the `calculate_parameters.py` script by passing the RGB color and directory for the mockup images as command-line arguments:
 
-   ```python
-   python create_mockup.py
-   ```
+```sh
+python calculate_parameters.py --color R G B --dir image_directory
+```
 
-The resulting mockups can be found in the 'images/output' directory. 
+Replace `R G B` with the RGB values of the color in your image, and `image_directory` with the directory that holds your mockup images. This will generate a `parameters.json` file with the calculated parameters.
+
+**Step 2: Create Mockups**
+
+The second step is to use the calculated parameters to position your designs onto the product mockups.
+
+Run the `create_mockups.py` script by passing the paths to the parameters file, design images directory, mockup images directory, and the output directory as command-line arguments:
+
+```sh
+python create_mockups.py --param_file parameters.json --design_dir design_directory --mockup_dir mockup_directory --output_dir output_directory
+```
+
+Replace `design_directory`, `mockup_directory`, and `output_directory` with the corresponding directory paths.
+
+## Example:
+
+```sh
+python calculate_parameters.py --color 0 0 0 --dir box_mockups
+python create_mockups.py --param_file parameters.json --design_dir designs --mockup_dir mockups --output_dir output
+```
+
+In the above example, the scripts will look for black color (0, 0, 0 in RGB) in images located in the `box_mockups` directory. The positioned images will then be saved in the `output` directory.
 
 ## File Descriptions
 
