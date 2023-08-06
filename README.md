@@ -53,9 +53,32 @@ pip install -r requirements.txt
 
 ## Usage
 
-**Step 1: Calculate Parameters**
+**Step 1: Prepare Your Files and Directories**
 
-The first step is to calculate the bounding box parameters for your mockup images. It identifies a specific color in your image (for example, a black box), and calculates the position, size, and rotation of this box.
+Firstly, prepare your directories for your design images, mockup images, and outputs (if they don't yet exist). Also, prepare your design images and place color boxes where you want your designs to be positioned on your mockup images. You can use any available software (e.g. Photoshop, GIMP). The color of the box should be unique and not utilized elsewhere in your images. Then export the mockups to a different directory but with the same name.
+
+Example directory structure:
+
+```
+my_directory
+├── designs
+│   ├── design1.png
+│   ├── design2.jpg
+│   └── ...
+├── mockups
+│   ├── mockup1.png
+│   ├── mockup2.jpg
+│   └── ...
+├── box_mockups
+│   ├── mockup1.png
+│   ├── mockup2.jpg
+│   └── ...
+└── output
+```
+
+**Step 2: Calculate Parameters**
+
+The second step is to calculate the bounding box parameters for your mockup images. It identifies a specific color in your image (for example, a black box), and calculates the position, size, and rotation of this box.
 
 Run the `calculate_parameters.py` script by passing the RGB color and directory for the mockup images as command-line arguments:
 
@@ -65,9 +88,9 @@ python calculate_parameters.py --color R G B --dir image_directory
 
 Replace `R G B` with the RGB values of the color in your image, and `image_directory` with the directory that holds your mockup images. This will generate a `parameters.json` file with the calculated parameters.
 
-**Step 2: Create Mockups**
+**Step 3: Create Mockups**
 
-The second step is to use the calculated parameters to position your designs onto the product mockups.
+The third step is to use the calculated parameters to position your designs onto the product mockups.
 
 Run the `create_mockups.py` script by passing the paths to the parameters file, design images directory, mockup images directory, and the output directory as command-line arguments:
 
