@@ -126,3 +126,13 @@ In the above example, the scripts will look for black color (0, 0, 0 in RGB) in 
 ## License
 
 This project is licensed under the MIT License.
+
+## Donate
+
+If you find this project useful, you can show your appreciation and support further development by making a donation:
+
+- **PayPal** - You can donate through PayPal [here](https://www.paypal.com/donate/?business=4DJ8EES4CX6QN&no_recurring=0&currency_code=USD).
+
+- **Bitcoin** - Send your donations to the following Bitcoin address: `0x6746eD80f13a4dE4920B88CEF0E1597A9c6775CC`.
+
+Any amount is appreciated and will help continue the ongoing development of this project!
