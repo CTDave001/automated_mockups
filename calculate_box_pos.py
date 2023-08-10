@@ -28,8 +28,8 @@ def calculate_parameters(image_path, target_color):
                 rotation = prop.orientation
         return bbox, height, width, rotation
     else:
-        print("No properties found for image: " + image_path)
-        return
+        print(f"No properties found for image: {image_path}")
+        return None, None, None, None
 
 def save_parameters(directory, target_color):
     parameters = {}
@@ -39,7 +39,6 @@ def save_parameters(directory, target_color):
             bbox, height, width, rotation = calculate_parameters(image_path, target_color)
             if bbox and height and width:
                 parameters[filename] = {"bbox": bbox, "height": height, "width": width, "rotation": rotation}
-
     with open("parameters.json", "w") as file:
         json.dump(parameters, file)
 
@@ -48,6 +47,7 @@ if __name__ == "__main__":
     parser.add_argument('--color', type=int, nargs=3, metavar=('R', 'G', 'B'), help="The RGB values of the color to find in the images.")
     parser.add_argument('--hex_color', type=str, help="The hexadecimal value of the color to find in the images.")
     parser.add_argument('--dir', type=str, default='images/box_mockups', help="Directory of images with the box.")
+    
     args = parser.parse_args()
 
     if args.hex_color:
@@ -55,5 +55,5 @@ if __name__ == "__main__":
         target_color = tuple(int(hex_color[i:i+2], 16) for i in (0, 2 ,4))
     else:
         target_color = tuple(args.color)
-        
+
     save_parameters(args.dir, target_color)
