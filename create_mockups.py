@@ -14,7 +14,6 @@ def load_parameters(path):
     return parameters
 
 def create_mockup(mockup_path, design_path, output_path, bbox, width, height, rotation, transparency):
-    print("processing image", mockup_path, "with design", design_path)
     mockup = Image.open(mockup_path)
     design = Image.open(design_path)
 
@@ -29,9 +28,9 @@ def create_mockup(mockup_path, design_path, output_path, bbox, width, height, ro
     design = design.resize((design_width, design_height))
     design = design.rotate(np.degrees(rotation), expand=True)
 
-    d2 = design.copy()
-    d2.putalpha(transparency)
-    design.paste(d2, design)
+    designCopy = design.copy()
+    designCopy.putalpha(transparency)
+    design.paste(designCopy, design)
 
     position = (int(bbox[1] + width / 2 - design.width / 2), int(bbox[0]))
 
