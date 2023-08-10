@@ -13,7 +13,8 @@ def load_parameters(path):
         parameters = json.load(file)
     return parameters
 
-def create_mockup(mockup_path, design_path, output_path, bbox, width, height, rotation):
+def create_mockup(mockup_path, design_path, output_path, bbox, width, height, rotation, transparency):
+    print("processing image", mockup_path, "with design", design_path)
     mockup = Image.open(mockup_path)
     design = Image.open(design_path)
 
@@ -28,12 +29,16 @@ def create_mockup(mockup_path, design_path, output_path, bbox, width, height, ro
     design = design.resize((design_width, design_height))
     design = design.rotate(np.degrees(rotation), expand=True)
 
+    d2 = design.copy()
+    d2.putalpha(transparency)
+    design.paste(d2, design)
+
     position = (int(bbox[1] + width / 2 - design.width / 2), int(bbox[0]))
 
     mockup.paste(design, position, design)
     mockup.save(output_path)
 
-def create_mockups(design_dir, mockup_dir, parameters, output_dir):
+def create_mockups(design_dir, mockup_dir, parameters, output_dir, transparency):
     os.makedirs(output_dir, exist_ok=True)
 
     for design_filename in os.listdir(design_dir):
@@ -42,7 +47,7 @@ def create_mockups(design_dir, mockup_dir, parameters, output_dir):
             for mockup_filename, params in parameters.items():
                 mockup_path = os.path.join(mockup_dir, mockup_filename)
                 output_path = os.path.join(output_dir, f"{os.path.splitext(design_filename)[0]}_{os.path.splitext(mockup_filename)[0]}.png")
-                create_mockup(mockup_path, design_path, output_path, params["bbox"], params["width"], params["height"], params["rotation"])
+                create_mockup(mockup_path, design_path, output_path, params["bbox"], params["width"], params["height"], params["rotation"], transparency)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create mockup designs based on given parameters.")
@@ -50,7 +55,8 @@ if __name__ == "__main__":
     parser.add_argument('--design_dir', type=str, default='images/designs', help="Directory of design images.")
     parser.add_argument('--mockup_dir', type=str, default='images/mockups', help="Directory of mockup images.")
     parser.add_argument('--output_dir', type=str, default='images/output', help="Directory to save the output images.")
+    parser.add_argument('--transparency', type=int, default=255, help="Amount of transparency for the design (0-255).")
     args = parser.parse_args()
 
     parameters = load_parameters(args.param_file)
-    create_mockups(args.design_dir, args.mockup_dir, parameters, args.output_dir)
+    create_mockups(args.design_dir, args.mockup_dir, parameters, args.output_dir, args.transparency)
