@@ -1,4 +1,4 @@
-# T-Shirt Mockup Generator
+# Automated T-Shirt Mockup Generator
 
 This project is a collection of Python scripts that automate the process of generating mockups by overlaying design images on predefined areas in mockup templates. It works with simple or complex mockup images including those where the placeholder box is rotated.
 
@@ -11,7 +11,8 @@ The tool takes two directories as input: one with the design images and the othe
 This tool is extremely helpful for designers, marketers, or anyone who needs to quickly generate a large number of mockups for design presentations, marketing collateral or e-commerce listings.
 
 ## Directories Tree
-This is how your structure should look like:
+
+Here is the structure of the project directory:
 
 ```
 /ShirtMockupGenerator
@@ -35,9 +36,9 @@ Follow these instructions to get the Shirt Mockup Generator running on your loca
 
 ### Prerequisites
 
-Ensure you have the following installed:
+You should have the following installed:
 
-- Python 3.8
+- Python 3.8 or later
 - Pillow
 - cv2 (OpenCV)
 - numpy
@@ -55,9 +56,9 @@ pip install -r requirements.txt
 
 **Step 1: Prepare Your Files and Directories**
 
-Firstly, prepare your directories for your design images, mockup images, and outputs (if they don't yet exist). Also, prepare your design images and place color boxes where you want your designs to be positioned on your mockup images. You can use any available software (e.g. Photoshop, GIMP). The color of the box should be unique and not utilized elsewhere in your images. Then export the mockups to a different directory but with the same name.
+Prepare your directories for your design images, mockup images, and outputs (if they don't yet exist). Also, prepare your design images and place color boxes where you want your designs to be positioned on your mockup images. You can use any available software (e.g. Photoshop, GIMP). The color of the box should be unique and not utilized elsewhere in your images. Then export the mockups to a different directory but with the same name.
 
-Example directory structure:
+Your directory structure should look like this:
 
 ```
 my_directory
@@ -80,17 +81,23 @@ my_directory
 
 The second step is to calculate the bounding box parameters for your mockup images. It identifies a specific color in your image (for example, a black box), and calculates the position, size, and rotation of this box.
 
-Run the `calculate_box_pos.py` script by passing the RGB color and directory for the mockup images as command-line arguments:
+Run the `calculate_box_pos.py` script by passing the RGB or HEX color, and directory for the mockup images as command-line arguments:
 
 ```sh
 python calculate_box_pos.py --color R G B --dir image_directory
 ```
 
-Replace `R G B` with the RGB values of the color in your image, and `image_directory` with the directory that holds your mockup images. This will generate a `parameters.json` file with the calculated parameters.
+or
+
+```sh
+python calculate_box_pos.py --hex_color HEX --dir image_directory
+```
+
+Replace `R G B` with the RGB values of the color in your image and `HEX` with the Hexadecimal value of the color. Replace `image_directory` with the directory that holds your mockup images. This will generate a `parameters.json` file with the calculated parameters.
 
 **Step 3: Create Mockups**
 
-The third step is to use the calculated parameters to position your designs onto the product mockups.
+In the third step, use the calculated parameters to position your designs onto the product mockups.
 
 Run the `create_mockups.py` script by passing the paths to the parameters file, design images directory, mockup images directory, and the output directory as command-line arguments:
 
@@ -106,14 +113,20 @@ Replace `design_directory`, `mockup_directory`, and `output_directory` with the 
 python calculate_box_pos.py --color 0 0 0 --dir box_mockups
 python create_mockups.py --param_file parameters.json --design_dir designs --mockup_dir mockups --output_dir output
 ```
+or
 
-In the above example, the scripts will look for black color (0, 0, 0 in RGB) in images located in the `box_mockups` directory. The positioned images will then be saved in the `output` directory.
+```sh
+python calculate_box_pos.py --hex_color #000000 --dir box_mockups
+python create_mockups.py --param_file parameters.json --design_dir designs --mockup_dir mockups --output_dir output
+```
+
+In the above examples, the scripts will look for black color (0, 0, 0 in RGB or #000000 in HEX format) in images located in the `box_mockups` directory. The positioned images will then be saved in the `output` directory.
 
 ## File Descriptions
 
-- `calculate_parameters.py`: This script analyzes the base mockup images and calculates the parameters necessary for placing the user's shirt design properly on each mockup.
+- `calculate_box_pos.py`: This script analyzes the base mockup images and calculates the parameters necessary for placing the user's shirt design properly on each mockup.
 
-- `create_mockup.py`: This script takes user design images and places them onto the base mockups using the parameters computed with calculate_parameters.py.
+- `create_mockup.py`: This script takes user design images and places them onto the base mockups using the parameters computed with calculate_box_pos.py.
 
 - `images/mockups`: Contains the base mockup images.
 
