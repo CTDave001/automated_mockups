@@ -80,10 +80,10 @@ my_directory
 
 The second step is to calculate the bounding box parameters for your mockup images. It identifies a specific color in your image (for example, a black box), and calculates the position, size, and rotation of this box.
 
-Run the `calculate_parameters.py` script by passing the RGB color and directory for the mockup images as command-line arguments:
+Run the `calculate_box_pos.py` script by passing the RGB color and directory for the mockup images as command-line arguments:
 
 ```sh
-python calculate_parameters.py --color R G B --dir image_directory
+python calculate_box_pos.py --color R G B --dir image_directory
 ```
 
 Replace `R G B` with the RGB values of the color in your image, and `image_directory` with the directory that holds your mockup images. This will generate a `parameters.json` file with the calculated parameters.
@@ -103,7 +103,7 @@ Replace `design_directory`, `mockup_directory`, and `output_directory` with the 
 ## Example:
 
 ```sh
-python calculate_parameters.py --color 0 0 0 --dir box_mockups
+python calculate_box_pos.py --color 0 0 0 --dir box_mockups
 python create_mockups.py --param_file parameters.json --design_dir designs --mockup_dir mockups --output_dir output
 ```
 
