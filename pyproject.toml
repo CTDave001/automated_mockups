@@ -1,0 +1,108 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mockup-generator"
+version = "1.0.0"
+description = "Automatically generate product mockups at scale by overlaying designs onto templates"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "CTDave001", email = "your-email@example.com"}
+]
+maintainers = [
+    {name = "CTDave001", email = "your-email@example.com"}
+]
+keywords = [
+    "mockup",
+    "mockup-generator",
+    "product-mockup",
+    "t-shirt-mockup",
+    "print-on-demand",
+    "pod",
+    "e-commerce",
+    "image-processing",
+    "batch-processing",
+    "automation",
+    "design",
+    "marketing",
+    "merchandise"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Multimedia :: Graphics :: Graphics Conversion",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20.0",
+    "Pillow>=9.0.0",
+    "opencv-python>=4.5.0",
+    "scikit-image>=0.19.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/CTDave001/automated_mockups"
+Documentation = "https://github.com/CTDave001/automated_mockups#readme"
+Repository = "https://github.com/CTDave001/automated_mockups.git"
+Issues = "https://github.com/CTDave001/automated_mockups/issues"
+Changelog = "https://github.com/CTDave001/automated_mockups/releases"
+
+[project.scripts]
+mockup-generator = "mockup_generator.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mockup_generator*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py38", "py39", "py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=mockup_generator --cov-report=term-missing"

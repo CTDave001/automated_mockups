@@ -1,151 +1,215 @@
-# Automated T-Shirt Mockup Generator
+# Automated Mockup Generator
 
-This project is a collection of Python scripts that automate the process of generating mockups by overlaying design images on predefined areas in mockup templates. It works with simple or complex mockup images including those where the placeholder box is rotated.
+[![PyPI version](https://badge.fury.io/py/mockup-generator.svg)](https://badge.fury.io/py/mockup-generator)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/CTDave001/automated_mockups/actions/workflows/ci.yml/badge.svg)](https://github.com/CTDave001/automated_mockups/actions/workflows/ci.yml)
 
-The script first identifies a target box within reference mockup images by looking for a specific color (e.g., black). It calculates the position, size, and rotation of this box relative to the overall image, and saves these details for multiple mockups in a JSON file.
+**Automatically generate hundreds of product mockups in seconds.** Perfect for e-commerce, print-on-demand, and marketing teams.
 
-Then, using these parameters, the script places design images onto real mockups (i.e., without target boxes). It scales and rotates the design according to each mockup's specific parameters, ensuring a real-life appearance. The top of the design aligns with the top of the box, and it is horizontally centered for a seamlessly fitting design in the mockup.
+![Mockup Generator Demo](https://raw.githubusercontent.com/CTDave001/automated_mockups/main/examples/demo.gif)
 
-The tool takes two directories as input: one with the design images and the other with the mockup templates. It generates a new image for every combination of design and mockup, storing mockups in an output directory.
+## Features
 
-This tool is extremely helpful for designers, marketers, or anyone who needs to quickly generate a large number of mockups for design presentations, marketing collateral or e-commerce listings.
+- **Batch Processing** - Generate all design x mockup combinations automatically
+- **Smart Detection** - Automatically detects placeholder boxes by color
+- **Rotation Support** - Handles angled/rotated design placements
+- **Flexible Alignment** - 9 alignment options (top-left to bottom-right)
+- **Multiple Formats** - PNG, JPEG, WebP output support
+- **Parallel Processing** - Fast generation with multi-threading
+- **CLI & Python API** - Use from command line or integrate into your workflow
 
-## Directories Tree
+## Quick Start
 
-Here is the structure of the project directory:
-
-```
-/ShirtMockupGenerator
-│   calculate_box_pos.py
-│   create_mockups.py
-│   README.md
-│   requirements.txt
-|   LICENSE
-|   parameters.json
-│
-└───images
-│   │   mockups
-│   │   designs
-│   │   output
-|   |   box_mockups
-```
-
-## Getting Started
-
-Follow these instructions to get the Shirt Mockup Generator running on your local machine.
-
-### Prerequisites
-
-You should have the following installed:
-
-- Python 3.8 or later
-- Pillow
-- cv2 (OpenCV)
-- numpy
-- scikit-image
-
-### Installing
-
-Install the required Python dependencies using pip:
+### Installation
 
 ```bash
-pip install -r requirements.txt
+pip install mockup-generator
 ```
 
-## Usage
+Or install from source:
 
-**Step 1: Prepare Your Files and Directories**
-
-Prepare your directories for your design images, mockup images, and outputs (if they don't yet exist). Also, prepare your design images and place color boxes where you want your designs to be positioned on your mockup images. You can use any available software (e.g. Photoshop, GIMP). The color of the box should be unique and not utilized elsewhere in your images. Then export the mockups to a different directory but with the same name.
-
-Your directory structure should look like this:
-
-```
-my_directory
-├── designs
-│   ├── design1.png
-│   ├── design2.jpg
-│   └── ...
-├── mockups
-│   ├── mockup1.png
-│   ├── mockup2.jpg
-│   └── ...
-├── box_mockups
-│   ├── mockup1.png
-│   ├── mockup2.jpg
-│   └── ...
-└── output
+```bash
+git clone https://github.com/CTDave001/automated_mockups.git
+cd automated_mockups
+pip install -e .
 ```
 
-**Step 2: Calculate Parameters**
+### Basic Usage
 
-The second step is to calculate the bounding box parameters for your mockup images. It identifies a specific color in your image (for example, a black box), and calculates the position, size, and rotation of this box.
+#### Step 1: Prepare Your Mockup Templates
 
-Run the `calculate_box_pos.py` script by passing the RGB or HEX color, and directory for the mockup images as command-line arguments:
+Create mockup templates with a **colored placeholder box** where designs should be placed:
 
-```sh
-python calculate_box_pos.py --color R G B --dir image_directory
+```
+mockups/
+  ├── tshirt_front.png    # Has a red (#FF0000) box where design goes
+  ├── tshirt_back.png
+  └── hoodie_front.png
 ```
 
-or
+#### Step 2: Calculate Placeholder Positions
 
-```sh
-python calculate_box_pos.py --hex_color HEX --dir image_directory
+```bash
+mockup-generator calculate --hex-color "#FF0000" --input mockups/ --output params.json
 ```
 
-Replace `R G B` with the RGB values of the color in your image and `HEX` with the Hexadecimal value of the color. Replace `image_directory` with the directory that holds your mockup images. This will generate a `parameters.json` file with the calculated parameters.
+This analyzes your mockups and saves the position, size, and rotation of each placeholder.
 
-**Step 3: Create Mockups**
+#### Step 3: Generate Mockups
 
-In the third step, use the calculated parameters to position your designs onto the product mockups.
-
-Run the `create_mockups.py` script by passing the paths to the parameters file, design images directory, mockup images directory, and the output directory as command-line arguments:
-
-```sh
-python create_mockups.py --param_file parameters.json --design_dir design_directory --mockup_dir mockup_directory --output_dir output_directory
+```bash
+mockup-generator generate \
+  --params params.json \
+  --designs designs/ \
+  --mockups mockups/ \
+  --output output/
 ```
 
-Replace `design_directory`, `mockup_directory`, and `output_directory` with the corresponding directory paths.
+That's it! Your `output/` folder now contains all combinations.
 
-## Example:
+## Python API
 
-```sh
-python calculate_box_pos.py --color 0 0 0 --dir box_mockups
-python create_mockups.py --param_file parameters.json --design_dir designs --mockup_dir mockups --output_dir output
+```python
+from mockup_generator import MockupCalculator, MockupGenerator, Color
+
+# Step 1: Calculate placeholder positions
+calculator = MockupCalculator(Color.from_hex("#FF0000"))
+params = calculator.process_directory("mockups/")
+calculator.save_parameters(params, "params.json")
+
+# Step 2: Generate mockups
+generator = MockupGenerator(params)
+results = generator.generate_all(
+    design_dir="designs/",
+    mockup_dir="mockups/",
+    output_dir="output/"
+)
+
+print(f"Generated {len([r for r in results if r.success])} mockups!")
 ```
-or
 
-```sh
-python calculate_box_pos.py --hex_color #000000 --dir box_mockups
-python create_mockups.py --param_file parameters.json --design_dir designs --mockup_dir mockups --output_dir output
+## CLI Reference
+
+### Calculate Command
+
+Analyzes mockup templates to find placeholder boxes.
+
+```bash
+mockup-generator calculate [OPTIONS]
+
+Options:
+  --color R G B        Target color as RGB (e.g., --color 255 0 0)
+  --hex-color HEX      Target color as hex (e.g., --hex-color "#FF0000")
+  -i, --input DIR      Input directory with mockup templates (required)
+  -o, --output FILE    Output JSON file (default: parameters.json)
+  --tolerance N        Color matching tolerance 0-255 (default: 30)
+  --recursive          Process subdirectories
+  -v, --verbose        Show detailed output
 ```
 
-In the above examples, the scripts will look for black color (0, 0, 0 in RGB or #000000 in HEX format) in images located in the `box_mockups` directory. The positioned images will then be saved in the `output` directory.
+### Generate Command
 
-## File Descriptions
+Creates mockups from designs and templates.
 
-- `calculate_box_pos.py`: This script analyzes the base mockup images and calculates the parameters necessary for placing the user's shirt design properly on each mockup.
+```bash
+mockup-generator generate [OPTIONS]
 
-- `create_mockup.py`: This script takes user design images and places them onto the base mockups using the parameters computed with calculate_box_pos.py.
+Options:
+  -p, --params FILE    Parameters JSON file (required)
+  -d, --designs DIR    Directory with design images (required)
+  -m, --mockups DIR    Directory with mockup templates (required)
+  -o, --output DIR     Output directory (required)
+  --alignment ALIGN    Design alignment: top_left, top_center, top_right,
+                       center_left, center, center_right, bottom_left,
+                       bottom_center, bottom_right (default: top_center)
+  --scale-mode MODE    Scaling: fit, fill, stretch, none (default: fit)
+  --format FORMAT      Output format: PNG, JPEG, WEBP (default: PNG)
+  --quality N          JPEG quality 1-100 (default: 95)
+  --pattern PATTERN    Output naming pattern (default: {design}_{mockup})
+  --no-parallel        Disable parallel processing
+  --workers N          Number of parallel workers (default: 4)
+```
 
-- `images/mockups`: Contains the base mockup images.
+## Configuration Options
 
-- `images/designs`: Contains the user's shirt design images.
+### Alignment Modes
 
-- `images/output`: Stores the generated mockups.
+| Alignment | Description |
+|-----------|-------------|
+| `top_left` | Design aligned to top-left of placeholder |
+| `top_center` | Design centered horizontally, aligned to top |
+| `top_right` | Design aligned to top-right |
+| `center_left` | Design centered vertically, aligned to left |
+| `center` | Design centered both ways |
+| `center_right` | Design centered vertically, aligned to right |
+| `bottom_left` | Design aligned to bottom-left |
+| `bottom_center` | Design centered horizontally, aligned to bottom |
+| `bottom_right` | Design aligned to bottom-right |
 
-- `images/parameters.json`: Holds the computed parameters for each mockup.
+### Scale Modes
+
+| Mode | Description |
+|------|-------------|
+| `fit` | Scale to fit within placeholder, maintaining aspect ratio |
+| `fill` | Scale to fill placeholder completely (may crop) |
+| `stretch` | Stretch to exact placeholder size (ignores aspect ratio) |
+| `none` | Use original design size |
+
+## Use Cases
+
+- **Print-on-Demand** - Generate product previews for your POD store
+- **E-commerce** - Create product images for multiple colors/variants
+- **Marketing** - Quickly visualize designs on merchandise
+- **Design Agencies** - Present client designs on realistic mockups
+- **Social Media** - Generate promotional images at scale
+
+## Project Structure
+
+```
+automated_mockups/
+├── mockup_generator/
+│   ├── __init__.py       # Package exports
+│   ├── calculator.py     # Box position detection
+│   ├── generator.py      # Mockup generation
+│   ├── cli.py           # Command-line interface
+│   └── utils.py         # Utilities and helpers
+├── examples/
+│   ├── designs/         # Sample design files
+│   ├── mockups/         # Sample mockup templates
+│   └── output/          # Generated mockups
+├── tests/               # Unit tests
+├── pyproject.toml       # Package configuration
+└── README.md
+```
+
+## Requirements
+
+- Python 3.8+
+- NumPy
+- Pillow
+- scikit-image
+- OpenCV (cv2)
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Donate
+## Acknowledgments
 
-If you find this project useful, you can show your appreciation and support further development by making a donation:
+- Built with [Pillow](https://pillow.readthedocs.io/) for image processing
+- Color detection powered by [scikit-image](https://scikit-image.org/)
 
-- **PayPal** - You can donate through PayPal [here](https://www.paypal.com/donate/?business=4DJ8EES4CX6QN&no_recurring=0&currency_code=USD).
+---
 
-- **Bitcoin** - Send your donations to the following Bitcoin address: `0x6746eD80f13a4dE4920B88CEF0E1597A9c6775CC`.
-
-Any amount is appreciated and will help continue the ongoing development of this project!
+**Star this repo** if you find it useful! Questions? Open an [issue](https://github.com/CTDave001/automated_mockups/issues).
