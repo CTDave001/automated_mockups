@@ -1,0 +1,34 @@
+{
+  "tote_bag.png": {
+    "filename": "tote_bag.png",
+    "bbox": [
+      360,
+      255,
+      580,
+      545
+    ],
+    "width": 261,
+    "height": 171,
+    "rotation": -11.99689930792357,
+    "center": [
+      400,
+      469
+    ]
+  },
+  "tshirt_front.png": {
+    "filename": "tshirt_front.png",
+    "bbox": [
+      260,
+      280,
+      500,
+      520
+    ],
+    "width": 240,
+    "height": 240,
+    "rotation": 0.0,
+    "center": [
+      400,
+      380
+    ]
+  }
+}

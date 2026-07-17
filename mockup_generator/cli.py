@@ -5,12 +5,10 @@ Command-line interface for the mockup generator.
 import argparse
 import logging
 import sys
-from pathlib import Path
-from typing import Optional
 
 from . import __version__
 from .calculator import MockupCalculator
-from .generator import MockupGenerator, Alignment, ScaleMode
+from .generator import Alignment, MockupGenerator, ScaleMode
 from .utils import Color, setup_logging
 
 
@@ -31,25 +29,15 @@ Examples:
   # Full pipeline
   mockup-generator calculate --color 255 0 0 --input templates/ --output params.json
   mockup-generator generate --params params.json --designs designs/ --mockups templates/ --output output/
-        """
+        """,
     )
 
-    parser.add_argument(
-        "--version",
-        action="version",
-        version=f"%(prog)s {__version__}"
-    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
 
     parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Enable verbose output"
-    )
-
-    parser.add_argument(
-        "-q", "--quiet",
-        action="store_true",
-        help="Suppress all output except errors"
+        "-q", "--quiet", action="store_true", help="Suppress all output except errors"
     )
 
     # Subcommands
@@ -57,8 +45,7 @@ Examples:
 
     # Calculate command
     calc_parser = subparsers.add_parser(
-        "calculate",
-        help="Calculate box positions from mockup templates"
+        "calculate", help="Calculate box positions from mockup templates"
     )
 
     color_group = calc_parser.add_mutually_exclusive_group(required=True)
@@ -67,74 +54,54 @@ Examples:
         type=int,
         nargs=3,
         metavar=("R", "G", "B"),
-        help="Target color as RGB values (0-255)"
+        help="Target color as RGB values (0-255)",
     )
     color_group.add_argument(
         "--hex-color",
         type=str,
         metavar="HEX",
-        help="Target color as hex string (e.g., '#FF0000' or 'FF0000')"
+        help="Target color as hex string (e.g., '#FF0000' or 'FF0000')",
     )
 
     calc_parser.add_argument(
-        "-i", "--input",
-        type=str,
-        required=True,
-        help="Input directory containing mockup templates"
+        "-i", "--input", type=str, required=True, help="Input directory containing mockup templates"
     )
 
     calc_parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         type=str,
         default="parameters.json",
-        help="Output JSON file for parameters (default: parameters.json)"
+        help="Output JSON file for parameters (default: parameters.json)",
     )
 
     calc_parser.add_argument(
-        "--tolerance",
-        type=int,
-        default=30,
-        help="Color matching tolerance (default: 30)"
+        "--tolerance", type=int, default=30, help="Color matching tolerance (default: 30)"
     )
 
     calc_parser.add_argument(
-        "--recursive",
-        action="store_true",
-        help="Process subdirectories recursively"
+        "--recursive", action="store_true", help="Process subdirectories recursively"
     )
 
     # Generate command
     gen_parser = subparsers.add_parser(
-        "generate",
-        help="Generate mockups from designs and templates"
+        "generate", help="Generate mockups from designs and templates"
     )
 
     gen_parser.add_argument(
-        "-p", "--params",
-        type=str,
-        required=True,
-        help="Path to parameters JSON file"
+        "-p", "--params", type=str, required=True, help="Path to parameters JSON file"
     )
 
     gen_parser.add_argument(
-        "-d", "--designs",
-        type=str,
-        required=True,
-        help="Directory containing design images"
+        "-d", "--designs", type=str, required=True, help="Directory containing design images"
     )
 
     gen_parser.add_argument(
-        "-m", "--mockups",
-        type=str,
-        required=True,
-        help="Directory containing mockup templates"
+        "-m", "--mockups", type=str, required=True, help="Directory containing mockup templates"
     )
 
     gen_parser.add_argument(
-        "-o", "--output",
-        type=str,
-        required=True,
-        help="Output directory for generated mockups"
+        "-o", "--output", type=str, required=True, help="Output directory for generated mockups"
     )
 
     gen_parser.add_argument(
@@ -142,7 +109,7 @@ Examples:
         type=str,
         choices=[a.value for a in Alignment],
         default="top_center",
-        help="Design alignment within placeholder (default: top_center)"
+        help="Design alignment within placeholder (default: top_center)",
     )
 
     gen_parser.add_argument(
@@ -150,7 +117,7 @@ Examples:
         type=str,
         choices=[s.value for s in ScaleMode],
         default="fit",
-        help="How to scale designs (default: fit)"
+        help="How to scale designs (default: fit)",
     )
 
     gen_parser.add_argument(
@@ -158,40 +125,47 @@ Examples:
         type=str,
         choices=["PNG", "JPEG", "WEBP"],
         default="PNG",
-        help="Output image format (default: PNG)"
+        help="Output image format (default: PNG)",
     )
 
     gen_parser.add_argument(
-        "--quality",
-        type=int,
-        default=95,
-        help="Output quality for JPEG (1-100, default: 95)"
+        "--quality", type=int, default=95, help="Output quality for JPEG (1-100, default: 95)"
     )
 
     gen_parser.add_argument(
         "--pattern",
         type=str,
         default="{design}_{mockup}",
-        help="Output filename pattern (default: {design}_{mockup})"
+        help="Output filename pattern (default: {design}_{mockup})",
     )
 
     gen_parser.add_argument(
-        "--no-parallel",
+        "--keep-placeholder",
         action="store_true",
-        help="Disable parallel processing"
+        help="Leave the placeholder marker visible instead of erasing it. Only useful "
+        "when your designs are fully opaque and cover the box exactly.",
     )
 
     gen_parser.add_argument(
-        "--workers",
-        type=int,
-        default=4,
-        help="Number of parallel workers (default: 4)"
+        "--placeholder-fill",
+        type=str,
+        metavar="HEX",
+        help="Colour to erase the placeholder with (e.g. '#FFFFFF'). Defaults to "
+        "sampling the template around each box, which handles mixed batches.",
+    )
+
+    gen_parser.add_argument(
+        "--no-parallel", action="store_true", help="Disable parallel processing"
+    )
+
+    gen_parser.add_argument(
+        "--workers", type=int, default=4, help="Number of parallel workers (default: 4)"
     )
 
     return parser
 
 
-def cmd_calculate(args) -> int:
+def cmd_calculate(args: argparse.Namespace) -> int:
     """Execute the calculate command."""
     # Parse color
     if args.color:
@@ -205,16 +179,10 @@ def cmd_calculate(args) -> int:
     print()
 
     # Create calculator and process
-    calculator = MockupCalculator(
-        target_color=color,
-        color_tolerance=args.tolerance
-    )
+    calculator = MockupCalculator(target_color=color, color_tolerance=args.tolerance)
 
     try:
-        parameters = calculator.process_directory(
-            args.input,
-            recursive=args.recursive
-        )
+        parameters = calculator.process_directory(args.input, recursive=args.recursive)
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
@@ -230,7 +198,7 @@ def cmd_calculate(args) -> int:
     return 0
 
 
-def cmd_generate(args) -> int:
+def cmd_generate(args: argparse.Namespace) -> int:
     """Execute the generate command."""
     print(f"Parameters file: {args.params}")
     print(f"Designs directory: {args.designs}")
@@ -248,17 +216,25 @@ def cmd_generate(args) -> int:
         print(f"Error loading parameters: {e}", file=sys.stderr)
         return 1
 
+    try:
+        fill = Color.from_hex(args.placeholder_fill).to_rgb() if args.placeholder_fill else None
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
     # Create generator
     generator = MockupGenerator(
         parameters=parameters,
         alignment=Alignment(args.alignment),
         scale_mode=ScaleMode(args.scale_mode),
         output_quality=args.quality,
-        output_format=args.format
+        output_format=args.format,
+        cover_placeholder=not args.keep_placeholder,
+        placeholder_fill=fill,
     )
 
     # Progress callback
-    def progress(completed: int, total: int):
+    def progress(completed: int, total: int) -> None:
         pct = (completed / total) * 100
         print(f"\rProgress: {completed}/{total} ({pct:.1f}%)", end="", flush=True)
 
@@ -271,7 +247,7 @@ def cmd_generate(args) -> int:
             naming_pattern=args.pattern,
             parallel=not args.no_parallel,
             max_workers=args.workers,
-            progress_callback=progress
+            progress_callback=progress,
         )
     except FileNotFoundError as e:
         print(f"\nError: {e}", file=sys.stderr)
@@ -283,7 +259,7 @@ def cmd_generate(args) -> int:
     successful = sum(1 for r in results if r.success)
     failed = len(results) - successful
 
-    print(f"\nGeneration complete!")
+    print("\nGeneration complete!")
     print(f"  Successful: {successful}")
     print(f"  Failed: {failed}")
 
@@ -296,7 +272,7 @@ def cmd_generate(args) -> int:
     return 0 if failed == 0 else 1
 
 
-def main(argv: Optional[list] = None) -> int:
+def main(argv: list | None = None) -> int:
     """Main entry point for the CLI."""
     parser = create_parser()
     args = parser.parse_args(argv)

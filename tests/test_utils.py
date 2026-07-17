@@ -1,6 +1,7 @@
 """Tests for utility functions and classes."""
 
 import pytest
+
 from mockup_generator.utils import Color, ImageFormat
 
 

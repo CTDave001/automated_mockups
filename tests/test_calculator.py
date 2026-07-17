@@ -1,14 +1,11 @@
 """Tests for the MockupCalculator class."""
 
 import json
-import tempfile
-from pathlib import Path
 
-import numpy as np
 import pytest
 from PIL import Image
 
-from mockup_generator import MockupCalculator, Color, BoxParameters
+from mockup_generator import BoxParameters, Color, MockupCalculator
 
 
 @pytest.fixture
@@ -109,7 +106,7 @@ class TestBoxParameters:
             width=100,
             height=100,
             rotation=0.0,
-            center=(70, 60)
+            center=(70, 60),
         )
         d = params.to_dict()
 
@@ -125,7 +122,7 @@ class TestBoxParameters:
             "width": 100,
             "height": 100,
             "rotation": 5.5,
-            "center": [70, 60]
+            "center": [70, 60],
         }
         params = BoxParameters.from_dict(data)
 

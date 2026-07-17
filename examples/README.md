@@ -1,36 +1,48 @@
 # Examples
 
-This directory contains example files for the mockup generator.
+Working sample files, so you can see real output before preparing anything of your own.
 
-## Directory Structure
+## What's here
 
 ```
 examples/
-├── designs/        # Put your design images here (PNG with transparency)
-├── mockups/        # Put your mockup templates here (with colored boxes)
-├── output/         # Generated mockups will be saved here
-└── parameters.json # Generated positioning parameters
+├── mockups/
+│   ├── tshirt_front.png   # square print area, no tilt
+│   └── tote_bag.png       # wide print area, tilted 12 degrees
+├── designs/
+│   ├── circles.png        # transparent PNG
+│   └── wordmark.png       # transparent PNG
+├── parameters.json        # produced by `calculate`, committed for reference
+└── demo.png               # the image used in the top-level README
 ```
 
-## Quick Test
+`output/` is git-ignored; it's created when you run the commands below.
 
-1. Add some mockup templates with red (#FF0000) placeholder boxes to `mockups/`
-2. Add your design images to `designs/`
-3. Run:
+## Run it
+
+From the repository root:
 
 ```bash
-# Calculate positions
+# 1. Find the placeholder boxes
 mockup-generator calculate --hex-color "#FF0000" --input examples/mockups/ --output examples/parameters.json
 
-# Generate mockups
-mockup-generator generate --params examples/parameters.json --designs examples/designs/ --mockups examples/mockups/ --output examples/output/
+# 2. Render every design onto every template
+mockup-generator generate --params examples/parameters.json --designs examples/designs/ \
+  --mockups examples/mockups/ --output examples/output/ --alignment center
 ```
 
-## Creating Mockup Templates
+You'll get four files in `examples/output/` — two designs times two templates.
 
-1. Find or create a product image (t-shirt, mug, etc.)
-2. Add a solid color box where the design should appear
-3. The box color should be unique (not present elsewhere in the image)
-4. Save as PNG
+The two templates are deliberately different: `tshirt_front.png` has a square, upright print area, while `tote_bag.png` has a wide one tilted 12 degrees. Compare the two outputs to see the tilt being tracked.
 
-**Tip:** Use bright red (#FF0000) or magenta (#FF00FF) as they're easy to detect and rarely appear in product photos.
+## Creating your own templates
+
+1. Find or create a product image (t-shirt, mug, tote, etc.)
+2. Draw a solid colour box covering the area the design should fill
+3. Draw it at the angle the product sits at — the tilt is recovered automatically
+4. Use a colour that appears nowhere else in the image
+5. Save as PNG
+
+**Tip:** bright red (`#FF0000`) or magenta (`#FF00FF`) work well; they're easy to detect and rarely occur in product photography.
+
+**Note:** the marker is erased before your design is composited, using a colour sampled from just around the box. On a flat-coloured garment that's exact. Over a busy or heavily textured photo, pass `--placeholder-fill` with an explicit colour instead.
