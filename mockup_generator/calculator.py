@@ -5,18 +5,18 @@ This module analyzes mockup template images to extract positioning parameters
 for design placement based on colored placeholder boxes.
 """
 
-from dataclasses import dataclass, asdict
-from pathlib import Path
-from typing import Dict, List, Optional, Union, Tuple
 import json
 import logging
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 from PIL import Image
 from skimage import measure
-from skimage.color import rgb2gray
 
-from .utils import Color, validate_directory, get_image_files, ImageFormat
+from .geometry import extent_to_pixel_count, min_area_rect
+from .utils import Color, ImageFormat, get_image_files, validate_directory
 
 logger = logging.getLogger(__name__)
 
@@ -26,27 +26,34 @@ class BoxParameters:
     """
     Parameters describing a detected placeholder box in a mockup template.
 
+    The box is modelled as a rotated rectangle: ``width``, ``height`` and
+    ``rotation`` describe the box in its own frame, and ``center`` locates it
+    on the template. ``bbox`` is the axis-aligned bounding box, retained for
+    inspection and debugging.
+
     Attributes:
         filename: Name of the source mockup file
-        bbox: Bounding box as (min_row, min_col, max_row, max_col)
-        width: Width of the detected box in pixels
-        height: Height of the detected box in pixels
-        rotation: Rotation angle in degrees (counter-clockwise)
+        bbox: Axis-aligned bounds as (min_row, min_col, max_row, max_col)
+        width: Width of the box along its own axis, in pixels
+        height: Height of the box along its own axis, in pixels
+        rotation: Tilt in degrees, normalized to (-45, 45]. Positive values
+            tilt clockwise on screen.
         center: Center point of the box as (x, y)
     """
+
     filename: str
-    bbox: Tuple[int, int, int, int]
+    bbox: tuple[int, int, int, int]
     width: int
     height: int
     rotation: float
-    center: Tuple[int, int]
+    center: tuple[int, int]
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "BoxParameters":
+    def from_dict(cls, data: dict[str, Any]) -> "BoxParameters":
         """Create from dictionary."""
         return cls(
             filename=data["filename"],
@@ -54,7 +61,7 @@ class BoxParameters:
             width=data["width"],
             height=data["height"],
             rotation=data["rotation"],
-            center=tuple(data["center"])
+            center=tuple(data["center"]),
         )
 
 
@@ -73,11 +80,8 @@ class MockupCalculator:
     """
 
     def __init__(
-        self,
-        target_color: Color,
-        color_tolerance: int = 30,
-        min_region_area: int = 100
-    ):
+        self, target_color: Color, color_tolerance: int = 30, min_region_area: int = 100
+    ) -> None:
         """
         Initialize the mockup calculator.
 
@@ -104,22 +108,16 @@ class MockupCalculator:
         """
         r, g, b = self.target_color.to_rgb()
 
-        # Calculate distance from target color for each pixel
         color_distance = np.sqrt(
-            (image[:, :, 0].astype(float) - r) ** 2 +
-            (image[:, :, 1].astype(float) - g) ** 2 +
-            (image[:, :, 2].astype(float) - b) ** 2
+            (image[:, :, 0].astype(float) - r) ** 2
+            + (image[:, :, 1].astype(float) - g) ** 2
+            + (image[:, :, 2].astype(float) - b) ** 2
         )
 
-        # Create mask for pixels within tolerance
-        mask = color_distance <= self.color_tolerance
-
+        mask: np.ndarray = color_distance <= self.color_tolerance
         return mask
 
-    def _find_largest_region(
-        self,
-        mask: np.ndarray
-    ) -> Optional[measure._regionprops.RegionProperties]:
+    def _find_largest_region(self, mask: np.ndarray) -> Any | None:
         """
         Find the largest connected region in a binary mask.
 
@@ -129,22 +127,16 @@ class MockupCalculator:
         Returns:
             RegionProperties for largest region, or None if no valid region found
         """
-        # Label connected components
         labeled = measure.label(mask)
         regions = measure.regionprops(labeled)
 
-        if not regions:
-            return None
-
-        # Filter by minimum area and find largest
         valid_regions = [r for r in regions if r.area >= self.min_region_area]
-
         if not valid_regions:
             return None
 
         return max(valid_regions, key=lambda r: r.area)
 
-    def calculate_parameters(self, image_path: Union[str, Path]) -> Optional[BoxParameters]:
+    def calculate_parameters(self, image_path: str | Path) -> BoxParameters | None:
         """
         Calculate box parameters from a single mockup template image.
 
@@ -161,16 +153,11 @@ class MockupCalculator:
             return None
 
         try:
-            # Load and convert image
             with Image.open(image_path) as img:
-                # Convert to RGB if necessary
-                if img.mode != "RGB":
-                    img = img.convert("RGB")
-                image_array = np.array(img)
+                image_array = np.array(img.convert("RGB"))
 
             logger.debug(f"Processing image: {image_path.name} ({image_array.shape})")
 
-            # Create mask and find region
             mask = self._create_color_mask(image_array)
             region = self._find_largest_region(mask)
 
@@ -178,31 +165,25 @@ class MockupCalculator:
                 logger.warning(f"No valid region found in {image_path.name}")
                 return None
 
-            # Extract parameters
-            min_row, min_col, max_row, max_col = region.bbox
-            height = max_row - min_row
-            width = max_col - min_col
+            rect = min_area_rect(region.coords)
+            if rect is None:
+                logger.warning(f"Region in {image_path.name} is degenerate; skipping")
+                return None
 
-            # Calculate rotation angle from region orientation
-            # orientation is in radians, convert to degrees
-            rotation = np.degrees(region.orientation)
-
-            # Calculate center point
-            center_y, center_x = region.centroid
-            center = (int(center_x), int(center_y))
+            (center_x, center_y), (extent_w, extent_h), rotation = rect
 
             params = BoxParameters(
                 filename=image_path.name,
-                bbox=(min_row, min_col, max_row, max_col),
-                width=width,
-                height=height,
+                bbox=tuple(int(v) for v in region.bbox),  # type: ignore[arg-type]
+                width=extent_to_pixel_count(extent_w),
+                height=extent_to_pixel_count(extent_h),
                 rotation=rotation,
-                center=center
+                center=(int(round(center_x)), int(round(center_y))),
             )
 
             logger.info(
                 f"Detected box in {image_path.name}: "
-                f"{width}x{height}px, rotation={rotation:.1f}deg"
+                f"{params.width}x{params.height}px, rotation={rotation:.1f}deg"
             )
 
             return params
@@ -212,10 +193,8 @@ class MockupCalculator:
             return None
 
     def process_directory(
-        self,
-        directory: Union[str, Path],
-        recursive: bool = False
-    ) -> Dict[str, BoxParameters]:
+        self, directory: str | Path, recursive: bool = False
+    ) -> dict[str, BoxParameters]:
         """
         Process all mockup templates in a directory.
 
@@ -227,20 +206,20 @@ class MockupCalculator:
             Dictionary mapping filenames to BoxParameters
         """
         directory = validate_directory(directory)
-        results: Dict[str, BoxParameters] = {}
+        results: dict[str, BoxParameters] = {}
 
-        # Get all image files
+        images: list[Path]
         if recursive:
-            images = []
+            found: list[Path] = []
             for ext in ImageFormat.supported_extensions():
-                images.extend(directory.rglob(f"*{ext}"))
-                images.extend(directory.rglob(f"*{ext.upper()}"))
+                found.extend(directory.rglob(f"*{ext}"))
+                found.extend(directory.rglob(f"*{ext.upper()}"))
+            images = sorted(set(found))
         else:
             images = get_image_files(directory)
 
         logger.info(f"Found {len(images)} images in {directory}")
 
-        # Process each image
         for image_path in images:
             params = self.calculate_parameters(image_path)
             if params:
@@ -252,9 +231,7 @@ class MockupCalculator:
 
     @staticmethod
     def save_parameters(
-        parameters: Dict[str, BoxParameters],
-        output_path: Union[str, Path],
-        indent: int = 2
+        parameters: dict[str, BoxParameters], output_path: str | Path, indent: int = 2
     ) -> None:
         """
         Save calculated parameters to a JSON file.
@@ -265,8 +242,6 @@ class MockupCalculator:
             indent: JSON indentation level
         """
         output_path = Path(output_path)
-
-        # Convert to serializable format
         data = {name: params.to_dict() for name, params in parameters.items()}
 
         with open(output_path, "w", encoding="utf-8") as f:
@@ -275,7 +250,7 @@ class MockupCalculator:
         logger.info(f"Saved parameters to {output_path}")
 
     @staticmethod
-    def load_parameters(input_path: Union[str, Path]) -> Dict[str, BoxParameters]:
+    def load_parameters(input_path: str | Path) -> dict[str, BoxParameters]:
         """
         Load parameters from a JSON file.
 
@@ -287,13 +262,10 @@ class MockupCalculator:
         """
         input_path = Path(input_path)
 
-        with open(input_path, "r", encoding="utf-8") as f:
+        with open(input_path, encoding="utf-8") as f:
             data = json.load(f)
 
-        parameters = {
-            name: BoxParameters.from_dict(params)
-            for name, params in data.items()
-        }
+        parameters = {name: BoxParameters.from_dict(params) for name, params in data.items()}
 
         logger.info(f"Loaded {len(parameters)} parameter sets from {input_path}")
 

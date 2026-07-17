@@ -5,24 +5,38 @@ This module combines design images with mockup templates to create
 final product mockups using pre-calculated positioning parameters.
 """
 
+import logging
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Union, Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import logging
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 
-from .calculator import BoxParameters, MockupCalculator
-from .utils import validate_directory, get_image_files
+from .calculator import BoxParameters
+from .geometry import rect_corners
+from .utils import get_image_files, validate_directory
 
 logger = logging.getLogger(__name__)
+
+# Below this, a rotation is visually indistinguishable from none and only costs
+# a resample pass.
+_ROTATION_EPSILON_DEG = 0.01
+
+# The marker is erased very slightly proud of the detected box so that the
+# anti-aliased pixels at its edge go too.
+_COVER_OVERSCAN = 1.04
+
+# Ring, as a multiple of the box, sampled to guess what the marker is sitting on.
+_SURROUND_INNER = 1.10
+_SURROUND_OUTER = 1.45
 
 
 class Alignment(Enum):
     """Design alignment options within the placeholder box."""
+
     TOP_LEFT = "top_left"
     TOP_CENTER = "top_center"
     TOP_RIGHT = "top_right"
@@ -36,6 +50,7 @@ class Alignment(Enum):
 
 class ScaleMode(Enum):
     """How to scale the design to fit the placeholder."""
+
     FIT = "fit"  # Scale to fit within bounds, maintaining aspect ratio
     FILL = "fill"  # Scale to fill bounds, may crop
     STRETCH = "stretch"  # Stretch to exact bounds, ignoring aspect ratio
@@ -45,19 +60,22 @@ class ScaleMode(Enum):
 @dataclass
 class GenerationResult:
     """Result of generating a single mockup."""
+
     success: bool
-    output_path: Optional[Path]
+    output_path: Path | None
     design_name: str
     mockup_name: str
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class MockupGenerator:
     """
     Generates product mockups by combining designs with templates.
 
-    This class takes design images and mockup templates, using pre-calculated
-    positioning parameters to create final composite mockups.
+    Placement happens in the placeholder box's own frame: the design is scaled
+    and aligned against an upright box, and only then is the whole composition
+    rotated to match the box's tilt and centred on it. Doing it in that order
+    keeps alignment meaningful for tilted boxes.
 
     Example:
         >>> params = MockupCalculator.load_parameters("parameters.json")
@@ -71,12 +89,14 @@ class MockupGenerator:
 
     def __init__(
         self,
-        parameters: Dict[str, BoxParameters],
+        parameters: dict[str, BoxParameters],
         alignment: Alignment = Alignment.TOP_CENTER,
         scale_mode: ScaleMode = ScaleMode.FIT,
         output_quality: int = 95,
-        output_format: str = "PNG"
-    ):
+        output_format: str = "PNG",
+        cover_placeholder: bool = True,
+        placeholder_fill: tuple[int, int, int] | None = None,
+    ) -> None:
         """
         Initialize the mockup generator.
 
@@ -86,20 +106,73 @@ class MockupGenerator:
             scale_mode: How to scale designs to fit placeholders
             output_quality: JPEG quality (1-100) if saving as JPEG
             output_format: Output image format (PNG, JPEG, etc.)
+            cover_placeholder: Erase the marker box before compositing. Designs
+                are usually transparent PNGs, so without this the marker shows
+                through wherever the design does not paint.
+            placeholder_fill: Colour to erase the marker with. When None, the
+                colour is sampled from the template around each box, which is
+                what lets one batch span differently coloured products.
         """
         self.parameters = parameters
         self.alignment = alignment
         self.scale_mode = scale_mode
         self.output_quality = output_quality
         self.output_format = output_format.upper()
+        self.cover_placeholder = cover_placeholder
+        self.placeholder_fill = placeholder_fill
 
         logger.info(f"Initialized generator with {len(parameters)} mockup templates")
 
+    def _placeholder_polygon(
+        self, params: BoxParameters, scale: float = 1.0
+    ) -> list[tuple[float, float]]:
+        """Corners of the placeholder box, optionally grown about its centre."""
+        return rect_corners(
+            (float(params.center[0]), float(params.center[1])),
+            (params.width * scale, params.height * scale),
+            params.rotation,
+        )
+
+    def _sample_surrounding_color(
+        self, template: Image.Image, params: BoxParameters
+    ) -> tuple[int, int, int] | None:
+        """
+        Estimate what the marker is painted on top of.
+
+        Samples a ring around the box and takes the median, so a stray
+        neighbouring colour cannot drag the result the way a mean would.
+
+        Returns:
+            An (r, g, b) tuple, or None if the ring falls outside the image.
+        """
+        inner = Image.new("L", template.size, 0)
+        ImageDraw.Draw(inner).polygon(self._placeholder_polygon(params, _SURROUND_INNER), fill=255)
+
+        outer = Image.new("L", template.size, 0)
+        ImageDraw.Draw(outer).polygon(self._placeholder_polygon(params, _SURROUND_OUTER), fill=255)
+
+        ring = (np.array(outer) > 0) & (np.array(inner) == 0)
+        if not ring.any():
+            return None
+
+        pixels = np.array(template.convert("RGB"))[ring]
+        median = np.median(pixels, axis=0)
+        return (int(median[0]), int(median[1]), int(median[2]))
+
+    def _erase_placeholder(self, output: Image.Image, params: BoxParameters) -> None:
+        """Paint over the marker box so it cannot show through the design."""
+        fill = self.placeholder_fill or self._sample_surrounding_color(output, params)
+        if fill is None:
+            logger.warning("Could not determine a placeholder fill colour; leaving marker in place")
+            return
+
+        ImageDraw.Draw(output).polygon(
+            self._placeholder_polygon(params, _COVER_OVERSCAN), fill=(*fill, 255)
+        )
+
     def _calculate_scaled_size(
-        self,
-        design_size: tuple,
-        target_size: tuple
-    ) -> tuple:
+        self, design_size: tuple[int, int], target_size: tuple[int, int]
+    ) -> tuple[int, int]:
         """
         Calculate the scaled size for a design based on scale mode.
 
@@ -119,7 +192,6 @@ class MockupGenerator:
         if self.scale_mode == ScaleMode.NONE:
             return design_size
 
-        # Calculate scale factors
         scale_x = target_w / design_w
         scale_y = target_h / design_h
 
@@ -128,88 +200,70 @@ class MockupGenerator:
         else:  # FILL
             scale = max(scale_x, scale_y)
 
-        new_w = int(design_w * scale)
-        new_h = int(design_h * scale)
+        return (max(1, int(design_w * scale)), max(1, int(design_h * scale)))
 
-        return (new_w, new_h)
-
-    def _calculate_position(
-        self,
-        design_size: tuple,
-        params: BoxParameters
-    ) -> tuple:
+    def _calculate_alignment_offset(
+        self, design_size: tuple[int, int], box_size: tuple[int, int]
+    ) -> tuple[int, int]:
         """
-        Calculate the paste position based on alignment.
+        Calculate where to place the design inside the upright placeholder box.
 
         Args:
             design_size: (width, height) of the scaled design
-            params: Box parameters for the mockup
+            box_size: (width, height) of the placeholder box
 
         Returns:
-            (x, y) position for pasting the design
+            (x, y) offset within the box
         """
         design_w, design_h = design_size
-        box_w, box_h = params.width, params.height
-        min_row, min_col, _, _ = params.bbox
+        box_w, box_h = box_size
+        value = self.alignment.value
 
-        # Calculate offsets based on alignment
-        if "left" in self.alignment.value:
+        if "left" in value:
             x_offset = 0
-        elif "right" in self.alignment.value:
+        elif "right" in value:
             x_offset = box_w - design_w
-        else:  # center
+        else:
             x_offset = (box_w - design_w) // 2
 
-        if "top" in self.alignment.value:
+        if "top" in value:
             y_offset = 0
-        elif "bottom" in self.alignment.value:
+        elif "bottom" in value:
             y_offset = box_h - design_h
-        else:  # center
+        else:
             y_offset = (box_h - design_h) // 2
 
-        # Add box position offset
-        x = min_col + x_offset
-        y = min_row + y_offset
+        return (x_offset, y_offset)
 
-        return (x, y)
-
-    def _rotate_design(
-        self,
-        design: Image.Image,
-        angle: float
-    ) -> Image.Image:
+    def _compose_box(self, design: Image.Image, params: BoxParameters) -> Image.Image:
         """
-        Rotate the design image.
+        Scale and align the design onto a transparent canvas the size of the box.
+
+        Anything overflowing the box is clipped, which is what gives FILL its
+        crop-to-box behaviour.
 
         Args:
-            design: PIL Image to rotate
-            angle: Rotation angle in degrees
+            design: The design image, in RGBA
+            params: Box parameters for the target mockup
 
         Returns:
-            Rotated PIL Image with transparency preserved
+            An RGBA canvas exactly the size of the placeholder box
         """
-        if abs(angle) < 0.1:  # Skip rotation for very small angles
-            return design
+        box_size = (params.width, params.height)
 
-        # Ensure RGBA mode for transparency
-        if design.mode != "RGBA":
-            design = design.convert("RGBA")
-
-        # Rotate with expansion to prevent cropping
-        rotated = design.rotate(
-            angle,
-            expand=True,
-            resample=Image.Resampling.BICUBIC,
-            fillcolor=(0, 0, 0, 0)
+        scaled = design.resize(
+            self._calculate_scaled_size(design.size, box_size), Image.Resampling.LANCZOS
         )
 
-        return rotated
+        canvas = Image.new("RGBA", box_size, (0, 0, 0, 0))
+        canvas.paste(scaled, self._calculate_alignment_offset(scaled.size, box_size), scaled)
+        return canvas
 
     def generate_mockup(
         self,
-        design_path: Union[str, Path],
-        mockup_path: Union[str, Path],
-        output_path: Union[str, Path]
+        design_path: str | Path,
+        mockup_path: str | Path,
+        output_path: str | Path,
     ) -> GenerationResult:
         """
         Generate a single mockup by combining a design with a template.
@@ -226,58 +280,49 @@ class MockupGenerator:
         mockup_path = Path(mockup_path)
         output_path = Path(output_path)
 
-        # Get parameters for this mockup
         if mockup_path.name not in self.parameters:
             return GenerationResult(
                 success=False,
                 output_path=None,
                 design_name=design_path.name,
                 mockup_name=mockup_path.name,
-                error=f"No parameters found for mockup: {mockup_path.name}"
+                error=f"No parameters found for mockup: {mockup_path.name}",
             )
 
         params = self.parameters[mockup_path.name]
 
         try:
-            # Load images
-            design = Image.open(design_path)
-            mockup = Image.open(mockup_path)
+            with Image.open(design_path) as design_src, Image.open(mockup_path) as mockup_src:
+                design = design_src.convert("RGBA")
+                output = mockup_src.convert("RGBA")
 
-            # Convert design to RGBA for transparency support
-            if design.mode != "RGBA":
-                design = design.convert("RGBA")
+            if self.cover_placeholder:
+                self._erase_placeholder(output, params)
 
-            # Convert mockup to RGBA
-            if mockup.mode != "RGBA":
-                mockup = mockup.convert("RGBA")
+            placed = self._compose_box(design, params)
 
-            # Calculate scaled size
-            target_size = (params.width, params.height)
-            new_size = self._calculate_scaled_size(design.size, target_size)
+            # The box frame is upright; rotate it into the template's frame.
+            # `rotation` tilts clockwise on screen, while PIL rotates
+            # counter-clockwise, hence the negation.
+            if abs(params.rotation) >= _ROTATION_EPSILON_DEG:
+                placed = placed.rotate(
+                    -params.rotation,
+                    expand=True,
+                    resample=Image.Resampling.BICUBIC,
+                    fillcolor=(0, 0, 0, 0),
+                )
 
-            # Resize design
-            design = design.resize(new_size, Image.Resampling.LANCZOS)
+            center_x, center_y = params.center
+            position = (
+                int(round(center_x - placed.width / 2)),
+                int(round(center_y - placed.height / 2)),
+            )
+            output.paste(placed, position, placed)
 
-            # Rotate design to match mockup angle
-            design = self._rotate_design(design, params.rotation)
-
-            # Calculate paste position
-            position = self._calculate_position(design.size, params)
-
-            # Create output image (copy of mockup)
-            output = mockup.copy()
-
-            # Paste design onto mockup
-            output.paste(design, position, design)
-
-            # Ensure output directory exists
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Save output
-            if self.output_format == "JPEG":
-                # Convert to RGB for JPEG (no alpha channel)
-                output = output.convert("RGB")
-                output.save(output_path, format="JPEG", quality=self.output_quality)
+            if self.output_format in ("JPEG", "JPG"):
+                output.convert("RGB").save(output_path, format="JPEG", quality=self.output_quality)
             else:
                 output.save(output_path, format=self.output_format)
 
@@ -287,7 +332,7 @@ class MockupGenerator:
                 success=True,
                 output_path=output_path,
                 design_name=design_path.name,
-                mockup_name=mockup_path.name
+                mockup_name=mockup_path.name,
             )
 
         except Exception as e:
@@ -297,19 +342,19 @@ class MockupGenerator:
                 output_path=None,
                 design_name=design_path.name,
                 mockup_name=mockup_path.name,
-                error=str(e)
+                error=str(e),
             )
 
     def generate_all(
         self,
-        design_dir: Union[str, Path],
-        mockup_dir: Union[str, Path],
-        output_dir: Union[str, Path],
+        design_dir: str | Path,
+        mockup_dir: str | Path,
+        output_dir: str | Path,
         naming_pattern: str = "{design}_{mockup}",
         parallel: bool = True,
         max_workers: int = 4,
-        progress_callback: Optional[Callable[[int, int], None]] = None
-    ) -> List[GenerationResult]:
+        progress_callback: Callable[[int, int], None] | None = None,
+    ) -> list[GenerationResult]:
         """
         Generate all combinations of designs and mockups.
 
@@ -331,67 +376,48 @@ class MockupGenerator:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Get all design and mockup files
         designs = get_image_files(design_dir)
-        mockups = [
-            f for f in get_image_files(mockup_dir)
-            if f.name in self.parameters
-        ]
+        mockups = [f for f in get_image_files(mockup_dir) if f.name in self.parameters]
 
         logger.info(f"Generating {len(designs)} designs x {len(mockups)} mockups")
 
-        # Prepare generation tasks
+        extension = (
+            ".jpg" if self.output_format in ("JPEG", "JPG") else f".{self.output_format.lower()}"
+        )
+
         tasks = []
         for design_path in designs:
             for mockup_path in mockups:
-                design_stem = design_path.stem
-                mockup_stem = mockup_path.stem
-
                 output_name = naming_pattern.format(
-                    design=design_stem,
-                    mockup=mockup_stem
+                    design=design_path.stem, mockup=mockup_path.stem
                 )
-                output_ext = f".{self.output_format.lower()}"
-                output_path = output_dir / f"{output_name}{output_ext}"
-
-                tasks.append((design_path, mockup_path, output_path))
+                tasks.append((design_path, mockup_path, output_dir / f"{output_name}{extension}"))
 
         total = len(tasks)
-        results = []
+        results: list[GenerationResult] = []
         completed = 0
 
         if parallel and len(tasks) > 1:
-            # Parallel processing
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures = {
-                    executor.submit(self.generate_mockup, *task): task
-                    for task in tasks
-                }
+                futures = [executor.submit(self.generate_mockup, *task) for task in tasks]
 
                 for future in as_completed(futures):
-                    result = future.result()
-                    results.append(result)
+                    results.append(future.result())
                     completed += 1
-
                     if progress_callback:
                         progress_callback(completed, total)
         else:
-            # Sequential processing
             for task in tasks:
-                result = self.generate_mockup(*task)
-                results.append(result)
+                results.append(self.generate_mockup(*task))
                 completed += 1
-
                 if progress_callback:
                     progress_callback(completed, total)
 
-        # Log summary
         successful = sum(1 for r in results if r.success)
         logger.info(f"Generation complete: {successful}/{total} successful")
 
         if successful < total:
-            failed = [r for r in results if not r.success]
-            for r in failed[:5]:  # Show first 5 failures
+            for r in [r for r in results if not r.success][:5]:
                 logger.warning(f"Failed: {r.design_name} + {r.mockup_name}: {r.error}")
 
         return results

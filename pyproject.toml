@@ -9,10 +9,10 @@ description = "Automatically generate product mockups at scale by overlaying des
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "CTDave001", email = "your-email@example.com"}
+    {name = "David Bogdanov"}
 ]
 maintainers = [
-    {name = "CTDave001", email = "your-email@example.com"}
+    {name = "David Bogdanov"}
 ]
 keywords = [
     "mockup",
@@ -27,30 +27,32 @@ keywords = [
     "automation",
     "design",
     "marketing",
-    "merchandise"
+    "merchandise",
 ]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Multimedia :: Graphics",
     "Topic :: Multimedia :: Graphics :: Graphics Conversion",
     "Topic :: Scientific/Engineering :: Image Processing",
 ]
-requires-python = ">=3.8"
+# scikit-image already requires 3.11, and numpy/scipy require 3.12 for current
+# releases. The previous ">=3.8" was never true and was never CI-verified.
+requires-python = ">=3.11"
 dependencies = [
-    "numpy>=1.20.0",
-    "Pillow>=9.0.0",
-    "opencv-python>=4.5.0",
+    "numpy>=1.21.0",
+    # 9.1 introduced Image.Resampling, which the generator uses.
+    "Pillow>=9.1.0",
     "scikit-image>=0.19.0",
+    "scipy>=1.7.0",
 ]
 
 [project.optional-dependencies]
@@ -78,11 +80,13 @@ include = ["mockup_generator*"]
 
 [tool.black]
 line-length = 100
-target-version = ["py38", "py39", "py310", "py311", "py312"]
+target-version = ["py311", "py312", "py313"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py38"
+target-version = "py311"
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -97,10 +101,16 @@ ignore = [
 ]
 
 [tool.mypy]
-python_version = "3.8"
+# Deliberately not pinning python_version: it must track whichever interpreter
+# CI is running, or mypy reads the installed numpy stubs against the wrong
+# language level and dies before checking any of our code.
 warn_return_any = true
 warn_unused_ignores = true
 disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["skimage.*", "scipy.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

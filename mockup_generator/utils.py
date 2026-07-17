@@ -2,18 +2,18 @@
 Utility classes and functions for the mockup generator.
 """
 
+import logging
+import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Tuple, Union, List
-import re
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 class ImageFormat(Enum):
     """Supported image formats."""
+
     PNG = "png"
     JPG = "jpg"
     JPEG = "jpeg"
@@ -22,12 +22,12 @@ class ImageFormat(Enum):
     BMP = "bmp"
 
     @classmethod
-    def supported_extensions(cls) -> Tuple[str, ...]:
+    def supported_extensions(cls) -> tuple[str, ...]:
         """Return tuple of supported file extensions."""
         return tuple(f".{fmt.value}" for fmt in cls)
 
     @classmethod
-    def glob_patterns(cls) -> List[str]:
+    def glob_patterns(cls) -> list[str]:
         """Return glob patterns for all supported formats."""
         patterns = []
         for fmt in cls:
@@ -44,11 +44,12 @@ class Color:
     - RGB tuple: Color(255, 0, 0)
     - Hex string: Color.from_hex("#FF0000") or Color.from_hex("FF0000")
     """
+
     r: int
     g: int
     b: int
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate color values are in valid range."""
         for channel, value in [("r", self.r), ("g", self.g), ("b", self.b)]:
             if not 0 <= value <= 255:
@@ -78,7 +79,7 @@ class Color:
         if len(hex_color) != 6:
             raise ValueError(f"Invalid hex color: {hex_color}. Expected 6 characters.")
 
-        if not re.match(r'^[0-9A-Fa-f]{6}$', hex_color):
+        if not re.match(r"^[0-9A-Fa-f]{6}$", hex_color):
             raise ValueError(f"Invalid hex color: {hex_color}. Contains invalid characters.")
 
         r = int(hex_color[0:2], 16)
@@ -87,7 +88,7 @@ class Color:
 
         return cls(r, g, b)
 
-    def to_rgb(self) -> Tuple[int, int, int]:
+    def to_rgb(self) -> tuple[int, int, int]:
         """Return color as RGB tuple."""
         return (self.r, self.g, self.b)
 
@@ -99,7 +100,7 @@ class Color:
         return f"Color({self.r}, {self.g}, {self.b})"
 
 
-def validate_directory(path: Union[str, Path], must_exist: bool = True) -> Path:
+def validate_directory(path: str | Path, must_exist: bool = True) -> Path:
     """
     Validate and return a Path object for a directory.
 
@@ -125,7 +126,7 @@ def validate_directory(path: Union[str, Path], must_exist: bool = True) -> Path:
     return path
 
 
-def get_image_files(directory: Path) -> List[Path]:
+def get_image_files(directory: Path) -> list[Path]:
     """
     Get all supported image files from a directory.
 
@@ -135,7 +136,7 @@ def get_image_files(directory: Path) -> List[Path]:
     Returns:
         List of Path objects for image files, sorted alphabetically
     """
-    images = []
+    images: list[Path] = []
     for pattern in ImageFormat.glob_patterns():
         images.extend(directory.glob(pattern))
 
@@ -145,7 +146,7 @@ def get_image_files(directory: Path) -> List[Path]:
 
 def setup_logging(
     level: int = logging.INFO,
-    format_string: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format_string: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 ) -> None:
     """
     Configure logging for the package.
@@ -154,8 +155,4 @@ def setup_logging(
         level: Logging level (e.g., logging.DEBUG, logging.INFO)
         format_string: Log message format
     """
-    logging.basicConfig(
-        level=level,
-        format=format_string,
-        handlers=[logging.StreamHandler()]
-    )
+    logging.basicConfig(level=level, format=format_string, handlers=[logging.StreamHandler()])

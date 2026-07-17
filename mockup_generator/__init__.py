@@ -9,7 +9,7 @@ __version__ = "1.0.0"
 __author__ = "CTDave001"
 __license__ = "MIT"
 
-from .calculator import MockupCalculator, BoxParameters
+from .calculator import BoxParameters, MockupCalculator
 from .generator import MockupGenerator
 from .utils import Color, ImageFormat
 
